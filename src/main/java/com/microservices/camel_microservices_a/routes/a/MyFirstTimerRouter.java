@@ -1,60 +1,90 @@
 package com.microservices.camel_microservices_a.routes.a;
 
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import org.apache.camel.builder.RouteBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.camel.converter.jaxb.JaxbDataFormat;
+import org.apache.camel.dataformat.bindy.csv.BindyCsvDataFormat;
+
+import org.apache.camel.spi.DataFormat;
 import org.springframework.stereotype.Component;
 
-//@Component
-public class MyFirstTimerRouter extends RouteBuilder {
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
-    @Autowired
-    private GetCurrentTimeBean getCurrentTimeBean;
+import static org.apache.camel.support.AsyncProcessorHelper.process;
 
-    @Autowired
-    private SimpleLoggingProcessingComponent loggingComponent;
+
+@Component
+public class MyFirstTimerRouter extends RouteBuilder  {
+
+    BindyCsvDataFormat bindy = new BindyCsvDataFormat (com.microservices.camel_microservices_a.routes.a.Order.class);
+    BindyCsvDataFormat bindyOutput = new BindyCsvDataFormat (com.microservices.camel_microservices_a.routes.a.OrderOutput.class);
+    JaxbDataFormat jaxbDataFormat =  new JaxbDataFormat(JAXBContext.newInstance(OrderOutput.class));
+
+    public MyFirstTimerRouter() throws JAXBException {
+    }
+
 
     public void configure() {
-        from("timer:first-timer")
+
+        from("file:C:\\Users\\OzgeColak\\OneDrive - DefineX\\Desktop\\Projects\\camel-microservices-a\\src\\main\\resources\\input1?fileName=exampleOrders.txt&noop=true")
+                //.split(body().tokenize("\n", 3, false)).streaming()
                 .log("${body}")
-                .transform().constant("My First Timer")
+                .unmarshal(bindy)
                 .log("${body}")
-                //.bean("getCurrentTimeBean")
-                //.bean(getCurrentTimeBean, "getCurrentTime")
-                .bean(getCurrentTimeBean)
-                .log("${body}")
-                .bean(loggingComponent)
-                .process(new SimpleLoggingProcessor())
-                .to("log:first-timer");
-    }
-}
+                .process(exchange -> {
+                    List<Order> orders = exchange.getMessage().getBody(List.class);
+                    List<OrderOutput> orderOutputs = new ArrayList<OrderOutput>(orders.size());
+                    Orders orderList = new Orders();
+/*
+                    for (Order order : orders) {
+                        OrderOutput orderOutput = new OrderOutput();
+                        orderOutput.setFirstName(order.getFirstName().toUpperCase());
+                        orderOutput.setLastName(order.getLastName().toUpperCase());
+                        orderOutput.setEmail(order.getEmail());
+                        orderOutput.setItem(order.getItem());
+                        orderOutput.setOrderId(order.getOrderId());
+                        orderOutput.setPrice(order.getPrice().multiply(new java.math.BigDecimal("1")));
+                        orderOutput.setFlag("Processed");
+                        orderOutputs.add(orderOutput);
+                    }
+
+                    exchange.getMessage().setBody(orderOutputs);
 
 
-class SimpleLoggingProcessor implements Processor {
+                    */
+                            for (Order order : orders) {
+                                OrderOutput orderOutput = new OrderOutput();
+                                orderOutput.setFirstName(order.getFirstName().toUpperCase());
+                                orderOutput.setLastName(order.getLastName().toUpperCase());
+                                orderOutput.setEmail(order.getEmail());
+                                orderOutput.setItem(order.getItem());
+                                orderOutput.setOrderId(order.getOrderId());
+                                orderOutput.setPrice(order.getPrice().multiply(new java.math.BigDecimal("1")));
+                                orderOutput.setFlag("Processed");
+                                orderOutputs.add(orderOutput);
+                            }
+                            orderList.setOrders(orderOutputs);
+                            //exchange.getMessage().setBody(orderOutputs);
+                            exchange.getMessage().setBody(orderList);
+                }
+                 )
 
-    @Override
-    public void process(Exchange exchange) throws Exception {
-        Logger logger = LoggerFactory.getLogger(SimpleLoggingProcessor.class);
-        logger.info("SimpleLoggingProcessor: {}", exchange.getMessage().getBody());
-    }
-}
+                .marshal(jaxbDataFormat)
+                .log("Demo App ${body}")
+                .setHeader("CamelFileName", constant("processedOrders3.txt"))
+                .to("file:C:\\Users\\OzgeColak\\OneDrive - DefineX\\Desktop\\Projects\\camel-microservices-a\\src\\main\\resources\\output?fileExist=Append");
+                //.end();
 
-@Component
-class GetCurrentTimeBean {
-    public String getCurrentTime() {
-        return "Time now is " + java.time.LocalDateTime.now();
-    }
-}
+                //.transform().constant("My First Message")
+                //.log("${body}")
 
-@Component
-class SimpleLoggingProcessingComponent {
+        // Input file .csv
+        //1 xsd
+        //generate the classes from xsd
+        // jaxb from xsd definition
+}}
 
-    private Logger logger = LoggerFactory.getLogger(SimpleLoggingProcessingComponent.class);
 
-    public void process(String message) {
-        logger.info("SimpleLoggingProcessingComponent: {}", message);
-    }
-}

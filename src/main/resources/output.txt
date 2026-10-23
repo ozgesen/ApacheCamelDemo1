@@ -1,0 +1,3 @@
+﻿Ozge:Esen:ozge@example.com:Java Programming Book:ORD-1001:499.9:M
+Ahmet:Yilmaz:ahmet@example.com:Spring Boot in Action:ORD-1002:629.5:L
+Elif:Demir:elif@example.com:Apache Camel Cookbook:ORD-1003:575.0:L
